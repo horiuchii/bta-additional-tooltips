@@ -22,17 +22,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.text.DecimalFormat;
+
 @Environment(EnvType.CLIENT)
 @Mixin(TooltipElement.class)
 public abstract class TooltipElementMixin {
-	@Unique
-	private String formatNum(float num) {
-		if (num == (int) num) {
-			return Integer.toString((int) num);
-		}
-		return String.format("%.1f", num);
-	}
-
 	@Unique
 	private boolean shouldDisplayTooltip(OptionEnum<AdditionalTooltipOptions.ShowTooltip> option) {
 		return option.value != AdditionalTooltipOptions.ShowTooltip.DONT_SHOW &&
@@ -60,13 +54,13 @@ public abstract class TooltipElementMixin {
 		if (item instanceof ItemArmor<?> armor) {
 			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_ARMOR_PROTECTION)) {
 				text.append("\n");
-				if (armor.getArmorShape() instanceof HumanArmorShape) {
+				if (armor.getArmorShape() instanceof HumanArmorShape armorShape) {
 					String slotName = "?";
-					switch (armor.getArmorShape().getSlotIndex()) {
-						case 0 -> slotName = "Head";
-						case 1 -> slotName = "Chest";
-						case 2 -> slotName = "Legs";
-						case 3 -> slotName = "Feet";
+					switch (armorShape) {
+						case HEAD -> slotName = "Head";
+						case CHEST -> slotName = "Chest";
+						case LEGS -> slotName = "Legs";
+						case BOOTS -> slotName = "Feet";
 					}
 					text.append(String.format("Protection when on %s:", slotName));
 				}
@@ -82,8 +76,8 @@ public abstract class TooltipElementMixin {
 							continue;
 
 						String damageTypeName = I18n.getInstance().translateKey(damageType.getLanguageKey());
-						String protection = formatNum(100.0F * (material.getProtection(damageType) * armor.getArmorPieceProtectionPercentage()));
-						text.append(String.format("\n%s%% %s", protection, damageTypeName));
+						String protection = new DecimalFormat("#.#").format((100.0F * (material.getProtection(damageType) * armor.getArmorPieceProtectionPercentage())));
+						text.append(String.format("\n+%s%% %s", protection, damageTypeName));
 					}
 				}
 			}
@@ -93,21 +87,21 @@ public abstract class TooltipElementMixin {
 		}
 
 		// Food Stats
-		if (item instanceof ItemFood || (item instanceof ItemPlaceable placeable && placeable.block.getLogic() instanceof BlockLogicEdible)) {
+		if (item instanceof ItemFood a || (item instanceof ItemPlaceable placeable && placeable.block.getLogic() instanceof BlockLogicEdible)) {
 			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_FOOD)) {
 				if (item instanceof ItemFood food) {
 					int healAmount = food.getHealAmount(itemStack);
 					if (healAmount != 0.0F) {
-						text.append('\n').append(TextFormatting.RED).append("♥").append(TextFormatting.LIGHT_GRAY).append(" x ").append(formatNum(healAmount / 2.0F));
+						text.append('\n').append(TextFormatting.RED).append("♥").append(TextFormatting.LIGHT_GRAY).append(" x ").append(new DecimalFormat("#.#").format((healAmount / 2.0F)));
 						int ticksPerHeal = food.getTicksPerHeal(itemStack);
 						if (ticksPerHeal != 0.0F && AdditionalTooltipOptions.SHOW_FOOD_REGEN_TIME.value) {
-							text.append(" over ").append(formatNum(healAmount*(ticksPerHeal/20.0F))).append("s");
+							text.append(" over ").append(new DecimalFormat("#.#").format((healAmount*(ticksPerHeal/20.0F)))).append("s");
 						}
 					}
 				}
 				else if (item instanceof ItemPlaceable placeable && placeable.block.getLogic() instanceof BlockLogicEdible edibleLogic) {
 					int healAmount = edibleLogic.getHealAmount(null, null);
-					text.append('\n').append(TextFormatting.RED).append("♥").append(TextFormatting.LIGHT_GRAY).append(String.format(" x %s per slice (%s total)", formatNum(healAmount / 2.0F), edibleLogic.maxBites));
+					text.append('\n').append(TextFormatting.RED).append("♥").append(TextFormatting.LIGHT_GRAY).append(String.format(" x %s per slice (%s total)", new DecimalFormat("#.#").format((healAmount / 2.0F)), edibleLogic.maxBites));
 				}
 			}
 			else {
