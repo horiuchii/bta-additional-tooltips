@@ -1,10 +1,12 @@
 {
   "required": true,
-  "package": "turniplabs.examplemod.mixin",
+  "package": "horiuchi.additionaltooltips.mixin",
   "compatibilityLevel": "JAVA_${java}",
   "injectors": {
     "defaultRequire": 1
   },
   "mixins": [],
-  "client": []
+  "client": [
+    "TooltipElementMixin"
+  ]
 }

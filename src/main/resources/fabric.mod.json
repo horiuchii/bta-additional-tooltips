@@ -1,11 +1,11 @@
 {
 	"schemaVersion": 1,
-	"id": "examplemod",
+	"id": "additionaltooltips",
 	"version": "${version}",
-	"name": "Example Mod",
-	"description": "This mod aims to help new BTA modders.",
+	"name": "Additional Tooltips",
+	"description": "Adds more information to item tooltips.",
 	"authors": [
-		"Turnip Labs"
+		"Horiuchi"
 	],
 	"contact": {
 		"homepage": "",
@@ -13,23 +13,17 @@
 	},
 	"icon": "icon.png",
 	"license": "CC0-1.0",
-	"environment": "*",
+	"environment": "client",
 	"entrypoints": {
-		"main": [
-			"turniplabs.examplemod.ExampleMod"
+		"initOptions": [
+			"horiuchi.additionaltooltips.AdditionalTooltipsClient"
 		],
-		"beforeGameStart": [
-			"turniplabs.examplemod.ExampleMod"
-		],
-		"afterGameStart": [
-			"turniplabs.examplemod.ExampleMod"
-		],
-		"recipesReady": [
-			"turniplabs.examplemod.ExampleMod"
+		"afterClientStart": [
+			"horiuchi.additionaltooltips.AdditionalTooltipsClient"
 		]
 	},
 	"mixins": [
-		"examplemod.mixins.json"
+		"additionaltooltips.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=${fabricloader}",

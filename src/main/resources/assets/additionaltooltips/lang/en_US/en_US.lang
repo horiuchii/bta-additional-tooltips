@@ -1,0 +1,27 @@
+additionaltooltips.options.title=Additional Tooltips
+additionaltooltips.options.category.additionaltooltips=Additional Tooltips
+
+key.additional.tooltip=Show Additional Tooltip
+
+options.showFood=Show Food Regen
+
+options.showFood.dont_show=Never Show
+options.showFood.on_show_description=Show w/ Description
+options.showFood.prompt=Prompt
+options.showFood.always_show=Always Show
+
+options.showFoodRegenTime=Show Food Regen Time
+
+options.showArmorProtection=Show Armor Protection Stats
+
+options.showArmorProtection.dont_show=Never Show
+options.showArmorProtection.on_show_description=Show w/ Description
+options.showArmorProtection.prompt=Prompt
+options.showArmorProtection.always_show=Always Show
+
+options.showDurability=Show Item Durability
+
+options.showDurability.dont_show=Never Show
+options.showDurability.on_show_description=Show w/ Description
+options.showDurability.prompt=Prompt
+options.showDurability.always_show=Always Show
