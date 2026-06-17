@@ -1,5 +1,6 @@
 package horiuchi.additionaltooltips.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.nbt.tags.CompoundTag;
 import com.mojang.nbt.tags.ListTag;
 import horiuchi.additionaltooltips.AdditionalTooltipOptions;
@@ -39,13 +40,14 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
+import java.util.List;
 
 @Environment(EnvType.CLIENT)
 @Mixin(TooltipElement.class)
@@ -63,7 +65,7 @@ public abstract class TooltipElementMixin extends Gui {
 	@Shadow
 	Minecraft mc;
 
-	@ModifyArg(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/TooltipElement;drawBackground(IIII)[I"), index = 3)
+	@ModifyExpressionValue(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/core/util/helper/MathHelper;ceil(D)I"))
 	private int modifyBackgroundHeight(int original) {
 		if (renderFlag) {
 			return original + 9 * ((AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1) * 2);
@@ -210,16 +212,17 @@ public abstract class TooltipElementMixin extends Gui {
 		GLRenderer.disableState(State.BLEND);
 	}
 
-	@Inject(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/font/FontRenderer;renderWidthConstrained(Ljava/lang/CharSequence;III)Lnet/minecraft/client/render/font/RenderIntegerConstrainedBase;"))
-	private void doAdditionalRendering(CharSequence chars, int mouseX, int mouseY, int offsetX, int offsetY, int maxWidth, int maxHeight, boolean canOffset, CallbackInfo ci) {
+	@Inject(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/font/FontRenderer;renderWidthConstrained(Ljava/lang/CharSequence;III)Lnet/minecraft/client/render/font/RenderIntegerConstrainedBase;"), locals = LocalCapture.CAPTURE_FAILHARD)
+	private void doAdditionalRendering(CharSequence chars, int mouseX, int mouseY, int offsetX, int offsetY, int maxWidth, int maxHeight, boolean canOffset, CallbackInfo callbackInfo,
+									   List<String> lines, int rawWidth, int rawHeight, int padding, int screenW, int screenH, int finalX, int finalY) {
 		if (renderItem == null) {
 			return;
 		}
 
 		if (renderFlag) {
-			renderFlagTooltip(mouseX + offsetX, mouseY + offsetY + 10);
+			renderFlagTooltip(finalX, finalY + 10);
 		} else if (renderMap) {
-			renderMapTooltip(mouseX + offsetX, mouseY + offsetY + 10 + AdditionalTooltipOptions.MAP_ART_SCALE.value);
+			renderMapTooltip(finalX, finalY + 10 + AdditionalTooltipOptions.MAP_ART_SCALE.value);
 		}
 	}
 
