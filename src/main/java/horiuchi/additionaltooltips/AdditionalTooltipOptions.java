@@ -16,6 +16,8 @@ public class AdditionalTooltipOptions {
 	public static final OptionEnum<ShowTooltip> SHOW_DURABILITY = new OptionEnum<>("showDurability", ShowTooltip.class, ShowTooltip.ON_SHOW_DESCRIPTION);
 	public static final OptionEnum<ShowTooltip> SHOW_FLAG_ART = new OptionEnum<>("showFlagArt", ShowTooltip.class, ShowTooltip.ON_SHOW_DESCRIPTION);
 	public static final OptionRange FLAG_ART_SCALE = new OptionRange("flagArtScale", 1, 3).withDisplayStringProvider((mc, i18n, option) -> (option.value + 1) + "x");
+	public static final OptionEnum<ShowTooltip> SHOW_MAP_ART = new OptionEnum<>("showMapArt", ShowTooltip.class, ShowTooltip.ON_SHOW_DESCRIPTION);
+	public static final OptionRange MAP_ART_SCALE = new OptionRange("mapArtScale", 1, 3).withDisplayStringProvider((mc, i18n, option) -> (option.value + 1) + "x");
 
 	@Environment(EnvType.CLIENT)
 	public enum ShowTooltip implements ITranslatable {

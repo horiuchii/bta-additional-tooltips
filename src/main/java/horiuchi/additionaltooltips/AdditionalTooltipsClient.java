@@ -34,6 +34,8 @@ public class AdditionalTooltipsClient implements ClientStartEntrypoint, OptionsI
 				.withComponent(new ToggleableOptionComponent<>(AdditionalTooltipOptions.SHOW_DURABILITY))
 				.withComponent(new ToggleableOptionComponent<>(AdditionalTooltipOptions.SHOW_FLAG_ART))
 				.withComponent(new ToggleableOptionComponent<>(AdditionalTooltipOptions.FLAG_ART_SCALE))
+				.withComponent(new ToggleableOptionComponent<>(AdditionalTooltipOptions.SHOW_MAP_ART))
+				.withComponent(new ToggleableOptionComponent<>(AdditionalTooltipOptions.MAP_ART_SCALE))
 			);
 		OptionsPages.register(additionalTooltipOptions);
 	}

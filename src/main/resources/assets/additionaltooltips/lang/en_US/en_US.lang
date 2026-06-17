@@ -34,3 +34,12 @@ options.showFlagArt.prompt=Prompt
 options.showFlagArt.always_show=Always Show
 
 options.flagArtScale=Flag Art Scale
+
+options.showMapArt=Show Map Art
+
+options.showMapArt.dont_show=Never Show
+options.showMapArt.on_show_description=Show w/ Description
+options.showMapArt.prompt=Prompt
+options.showMapArt.always_show=Always Show
+
+options.mapArtScale=Map Art Scale

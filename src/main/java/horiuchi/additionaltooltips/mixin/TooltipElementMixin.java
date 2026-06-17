@@ -11,13 +11,17 @@ import net.minecraft.client.gui.TooltipElement;
 import net.minecraft.client.option.GameSettings;
 import net.minecraft.client.option.OptionEnum;
 import net.minecraft.client.option.enums.DescriptionPromptEnum;
+import net.minecraft.client.render.MapItemRenderer;
+import net.minecraft.client.render.TextureManager;
 import net.minecraft.client.render.renderer.BlendFactor;
 import net.minecraft.client.render.renderer.GLRenderer;
 import net.minecraft.client.render.renderer.Shaders;
 import net.minecraft.client.render.renderer.State;
 import net.minecraft.client.render.tessellator.TessellatorGeneral;
+import net.minecraft.client.render.texture.TextureBuffered;
 import net.minecraft.client.util.helper.Colors;
 import net.minecraft.core.block.BlockLogicEdible;
+import net.minecraft.core.block.material.MaterialColor;
 import net.minecraft.core.enums.HumanArmorShape;
 import net.minecraft.core.item.*;
 import net.minecraft.core.item.material.ArmorMaterial;
@@ -25,8 +29,10 @@ import net.minecraft.core.lang.I18n;
 import net.minecraft.core.net.command.TextFormatting;
 import net.minecraft.core.player.inventory.slot.Slot;
 import net.minecraft.core.player.inventory.slot.SlotResult;
+import net.minecraft.core.util.helper.Color;
 import net.minecraft.core.util.helper.DamageType;
 import net.minecraft.core.util.helper.DyeColor;
+import net.minecraft.core.world.saveddata.maps.ItemMapSavedData;
 import org.apache.commons.lang3.StringUtils;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -38,6 +44,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
 
 @Environment(EnvType.CLIENT)
@@ -51,6 +58,8 @@ public abstract class TooltipElementMixin extends Gui {
 	private static final int FLAG_HEIGHT = 16;
 	@Unique
 	private boolean renderFlag;
+	@Unique
+	private boolean renderMap;
 	@Shadow
 	Minecraft mc;
 
@@ -58,6 +67,9 @@ public abstract class TooltipElementMixin extends Gui {
 	private int modifyBackgroundHeight(int original) {
 		if (renderFlag) {
 			return original + 9 * ((AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1) * 2);
+		}
+		else if (renderMap) {
+			return original + 9 * ((AdditionalTooltipOptions.MAP_ART_SCALE.value + 1) * 3);
 		}
 		return original;
 	}
@@ -76,12 +88,8 @@ public abstract class TooltipElementMixin extends Gui {
 		return unpacked;
 	}
 
-	@Inject(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/font/FontRenderer;renderWidthConstrained(Ljava/lang/CharSequence;III)Lnet/minecraft/client/render/font/RenderIntegerConstrainedBase;"))
-	private void doAdditionalRendering(CharSequence chars, int mouseX, int mouseY, int offsetX, int offsetY, int maxWidth, int maxHeight, boolean canOffset, CallbackInfo ci) {
-		if (!renderFlag || renderItem == null) {
-			return;
-		}
-
+	@Unique
+	private void renderFlagTooltip(int x, int y) {
 		CompoundTag flagData = renderItem.getData().getCompoundOrDefault("FlagData", null);
 
 		if (flagData == null) {
@@ -99,9 +107,6 @@ public abstract class TooltipElementMixin extends Gui {
 				colorData[i] = Colors.allFlagColors[TextFormatting.get(DyeColor.MASK_COLOR - stack.getMetadata()).id].getARGB();
 			}
 		}
-
-		int x = mouseX + offsetX;
-		int y = mouseY + offsetY + 10;
 
 		this.drawGuiTexture(this.mc.textureManager, x, y, FLAG_WIDTH * (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1), FLAG_HEIGHT * (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1), "/assets/minecraft/textures/entity/flag_ui.png");
 
@@ -144,6 +149,78 @@ public abstract class TooltipElementMixin extends Gui {
 
 		GLRenderer.disableState(State.BLEND);
 		GLRenderer.popFrame();
+	}
+
+	@Unique
+	private void renderMapTooltip(int x, int y) {
+		byte scale = renderItem.getData().getByteOrDefault("scale", (byte) -1);
+		if (scale == -1) {
+			return;
+		}
+
+		String s = String.format("map_%s_scale_%s", renderItem.getMetadata(), scale);
+		ItemMapSavedData mapData = (ItemMapSavedData)this.mc.currentWorld.getSavedData(ItemMapSavedData.class, s);
+		if (mapData == null) {
+			return;
+		}
+
+		int[] mapImageData = new int[MapItemRenderer.IMAGE_AREA];
+		TextureBuffered mapTexture = Minecraft.getMinecraft().textureManager.loadBufferedTexture(new BufferedImage(MapItemRenderer.IMAGE_WIDTH, MapItemRenderer.IMAGE_HEIGHT, 2));
+		TextureManager textureManager = Minecraft.getMinecraft().textureManager;
+		TessellatorGeneral tessellator = GLRenderer.getTessellator();
+
+		int size = 24 * (AdditionalTooltipOptions.MAP_ART_SCALE.value + 1);
+		this.drawGuiTexture(this.mc.textureManager, x, y, size, size, "/assets/minecraft/textures/misc/mapbg.png");
+
+		for(int i = 0; i < MapItemRenderer.IMAGE_AREA; ++i) {
+			int colorIndex = mapData.colors[i];
+			if (colorIndex >> 2 == 0) {
+				mapImageData[i] = (i + i / 128 & 1) * 8 + 16 << 24;
+			} else {
+				int col = MaterialColor.getColorFromIndex(colorIndex >> 2);
+				int i1 = colorIndex & 3;
+				int shade = 220;
+				if (i1 == 2) {
+					shade = 255;
+				}
+
+				if (i1 == 0) {
+					shade = 180;
+				}
+
+				int red = net.minecraft.core.util.helper.Color.redFromInt(col) * shade / Color.MASK_CHANNEL;
+				int green = net.minecraft.core.util.helper.Color.greenFromInt(col) * shade / Color.MASK_CHANNEL;
+				int blue = net.minecraft.core.util.helper.Color.blueFromInt(col) * shade / Color.MASK_CHANNEL;
+				mapImageData[i] = Color.intToIntARGB(255, red, green, blue);
+			}
+		}
+
+		textureManager.updateTextureData(mapImageData, MapItemRenderer.IMAGE_WIDTH, MapItemRenderer.IMAGE_HEIGHT, mapTexture.id());
+		mapTexture.bind();
+		size -= 2 * (AdditionalTooltipOptions.MAP_ART_SCALE.value + 1);
+		x += (AdditionalTooltipOptions.MAP_ART_SCALE.value + 1);
+		y += (AdditionalTooltipOptions.MAP_ART_SCALE.value + 1);
+		GLRenderer.enableState(State.BLEND);
+		tessellator.startDrawingQuads();
+		tessellator.addVertexWithUV(x, y +size, -0.01, 0, 1);
+		tessellator.addVertexWithUV(x + size, y + size, -0.01, 1, 1);
+		tessellator.addVertexWithUV(x + size, y, -0.01, 1, 0);
+		tessellator.addVertexWithUV(x, y, -0.01, 0, 0);
+		tessellator.draw();
+		GLRenderer.disableState(State.BLEND);
+	}
+
+	@Inject(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/font/FontRenderer;renderWidthConstrained(Ljava/lang/CharSequence;III)Lnet/minecraft/client/render/font/RenderIntegerConstrainedBase;"))
+	private void doAdditionalRendering(CharSequence chars, int mouseX, int mouseY, int offsetX, int offsetY, int maxWidth, int maxHeight, boolean canOffset, CallbackInfo ci) {
+		if (renderItem == null) {
+			return;
+		}
+
+		if (renderFlag) {
+			renderFlagTooltip(mouseX + offsetX, mouseY + offsetY + 10);
+		} else if (renderMap) {
+			renderMapTooltip(mouseX + offsetX, mouseY + offsetY + 10 + AdditionalTooltipOptions.MAP_ART_SCALE.value);
+		}
 	}
 
 	@Unique
@@ -255,6 +332,21 @@ public abstract class TooltipElementMixin extends Gui {
 		}
 		else {
 			renderFlag = false;
+		}
+
+		// Map Art
+		if (item instanceof ItemMap && ItemMap.hasInitialized(itemStack)) {
+			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_MAP_ART)) {
+				renderMap = true;
+				text.insert(text.indexOf("\n"), StringUtils.repeat("\n\n\n", (AdditionalTooltipOptions.MAP_ART_SCALE.value + 1)));
+			}
+			else {
+				renderMap = false;
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_MAP_ART);
+			}
+		}
+		else {
+			renderMap = false;
 		}
 
 		cir.setReturnValue(text.toString());
