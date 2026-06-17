@@ -1,12 +1,22 @@
 package horiuchi.additionaltooltips.mixin;
 
+import com.mojang.nbt.tags.CompoundTag;
+import com.mojang.nbt.tags.ListTag;
 import horiuchi.additionaltooltips.AdditionalTooltipOptions;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.TooltipElement;
 import net.minecraft.client.option.GameSettings;
 import net.minecraft.client.option.OptionEnum;
 import net.minecraft.client.option.enums.DescriptionPromptEnum;
+import net.minecraft.client.render.renderer.BlendFactor;
+import net.minecraft.client.render.renderer.GLRenderer;
+import net.minecraft.client.render.renderer.Shaders;
+import net.minecraft.client.render.renderer.State;
+import net.minecraft.client.render.tessellator.TessellatorGeneral;
+import net.minecraft.client.util.helper.Colors;
 import net.minecraft.core.block.BlockLogicEdible;
 import net.minecraft.core.enums.HumanArmorShape;
 import net.minecraft.core.item.*;
@@ -16,17 +26,126 @@ import net.minecraft.core.net.command.TextFormatting;
 import net.minecraft.core.player.inventory.slot.Slot;
 import net.minecraft.core.player.inventory.slot.SlotResult;
 import net.minecraft.core.util.helper.DamageType;
+import net.minecraft.core.util.helper.DyeColor;
+import org.apache.commons.lang3.StringUtils;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.awt.*;
 import java.text.DecimalFormat;
 
 @Environment(EnvType.CLIENT)
 @Mixin(TooltipElement.class)
-public abstract class TooltipElementMixin {
+public abstract class TooltipElementMixin extends Gui {
+	@Unique
+	private ItemStack renderItem = null;
+	@Unique
+	private static final int FLAG_WIDTH = 24;
+	@Unique
+	private static final int FLAG_HEIGHT = 16;
+	@Unique
+	private boolean renderFlag;
+	@Shadow
+	Minecraft mc;
+
+	@ModifyArg(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/TooltipElement;drawBackground(IIII)[I"), index = 3)
+	private int modifyBackgroundHeight(int original) {
+		if (renderFlag) {
+			return original + 9 * ((AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1) * 2);
+		}
+		return original;
+	}
+
+	@Unique
+	private byte[] unpackFlagColors(byte[] packed) {
+		byte[] unpacked = new byte[384];
+
+		for(int i = 0; i < 96; ++i) {
+			unpacked[i * 4 + 0] = (byte)((packed[i] & 3) >> 0);
+			unpacked[i * 4 + 1] = (byte)((packed[i] & 12) >> 2);
+			unpacked[i * 4 + 2] = (byte)((packed[i] & 48) >> 4);
+			unpacked[i * 4 + 3] = (byte)((packed[i] & 192) >> 6);
+		}
+
+		return unpacked;
+	}
+
+	@Inject(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/font/FontRenderer;renderWidthConstrained(Ljava/lang/CharSequence;III)Lnet/minecraft/client/render/font/RenderIntegerConstrainedBase;"))
+	private void doAdditionalRendering(CharSequence chars, int mouseX, int mouseY, int offsetX, int offsetY, int maxWidth, int maxHeight, boolean canOffset, CallbackInfo ci) {
+		if (!renderFlag || renderItem == null) {
+			return;
+		}
+
+		CompoundTag flagData = renderItem.getData().getCompoundOrDefault("FlagData", null);
+
+		if (flagData == null) {
+			return;
+		}
+
+		byte[] colorIndexes = unpackFlagColors(flagData.getByteArray("Colors"));
+		int[] colorData = {-1, -1, -1};
+
+		ListTag list = flagData.getList("Items");
+		for(int i = 0; i < list.tagCount(); ++i) {
+			CompoundTag compound = (CompoundTag)list.tagAt(i);
+			ItemStack stack = ItemStack.readItemStackFromNbt(compound);
+			if (stack != null && stack.getItem().equals(Items.DYE)) {
+				colorData[i] = Colors.allFlagColors[TextFormatting.get(DyeColor.MASK_COLOR - stack.getMetadata()).id].getARGB();
+			}
+		}
+
+		int x = mouseX + offsetX;
+		int y = mouseY + offsetY + 10;
+
+		this.drawGuiTexture(this.mc.textureManager, x, y, FLAG_WIDTH * (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1), FLAG_HEIGHT * (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1), "/assets/minecraft/textures/entity/flag_ui.png");
+
+		GLRenderer.pushFrame();
+		GLRenderer.enableState(State.BLEND);
+		GLRenderer.setBlendFunc(BlendFactor.ONE_MINUS_SRC_ALPHA, BlendFactor.SRC_COLOR);
+		GLRenderer.setShader(Shaders.COLOR);
+
+		TessellatorGeneral tessellator = GLRenderer.getTessellator();
+
+		for (int color = 0; color < 3; color++) {
+			if (colorData[color] == -1) {
+				continue;
+			}
+
+			GLRenderer.setColor1i(colorData[color]);
+
+			tessellator.startDrawingQuads();
+
+			for (int dx = 0; dx < FLAG_WIDTH; dx++) {
+				for (int dy = 0; dy < FLAG_HEIGHT; dy++) {
+					if (colorIndexes[dx + FLAG_WIDTH * dy] - 1 != color) {
+						continue;
+					}
+
+					int minX = x + dx * (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1);
+					int minY = y + dy * (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1);
+					int maxX = minX + (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1);
+					int maxY = minY + (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1);
+
+					tessellator.addVertex(minX, maxY, 0.0F);
+					tessellator.addVertex(maxX, maxY, 0.0F);
+					tessellator.addVertex(maxX, minY, 0.0F);
+					tessellator.addVertex(minX, minY, 0.0F);
+				}
+			}
+
+			tessellator.draw();
+		}
+
+		GLRenderer.disableState(State.BLEND);
+		GLRenderer.popFrame();
+	}
+
 	@Unique
 	private boolean shouldDisplayTooltip(OptionEnum<AdditionalTooltipOptions.ShowTooltip> option) {
 		return option.value != AdditionalTooltipOptions.ShowTooltip.DONT_SHOW &&
@@ -46,6 +165,7 @@ public abstract class TooltipElementMixin {
 
 	@Inject(method = "getTooltipText(Lnet/minecraft/core/item/ItemStack;ZLnet/minecraft/core/player/inventory/slot/Slot;)Ljava/lang/String;", at = @At("RETURN"), cancellable = true)
 	private void addAdditionalTooltipText(ItemStack itemStack, boolean showDescription, Slot slot, CallbackInfoReturnable<String> cir) {
+		renderItem = itemStack;
 		boolean drawnPrompt = (!showDescription && !(slot instanceof SlotResult) && GameSettings.ITEM_DESCRIPTIONS.value != DescriptionPromptEnum.NEVER_PROMPT) && GameSettings.KEY_DESCRIPTION.getKeyCode() == AdditionalTooltipOptions.KEY_SHOW_ADDITIONAL_TOOLTIP.getKeyCode();
 		StringBuilder text = new StringBuilder(cir.getReturnValue());
 		Item item = itemStack.getItem();
@@ -120,6 +240,21 @@ public abstract class TooltipElementMixin {
 			else {
 				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_DURABILITY);
 			}
+		}
+
+		// Flag Art
+		if (item instanceof ItemFlag flag && flag.hasFlagBeenDrawnOn(itemStack)) {
+			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_FLAG_ART)) {
+				renderFlag = true;
+				text.insert(text.indexOf("\n"), StringUtils.repeat("\n\n", (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1)));
+			}
+			else {
+				renderFlag = false;
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_FLAG_ART);
+			}
+		}
+		else {
+			renderFlag = false;
 		}
 
 		cir.setReturnValue(text.toString());

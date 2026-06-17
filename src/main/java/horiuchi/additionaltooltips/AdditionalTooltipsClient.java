@@ -2,10 +2,7 @@ package horiuchi.additionaltooltips;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.gui.options.components.BooleanOptionComponent;
-import net.minecraft.client.gui.options.components.KeyBindingComponent;
-import net.minecraft.client.gui.options.components.OptionsCategory;
-import net.minecraft.client.gui.options.components.ToggleableOptionComponent;
+import net.minecraft.client.gui.options.components.*;
 import net.minecraft.client.gui.options.data.OptionsPage;
 import net.minecraft.client.gui.options.data.OptionsPages;
 import net.minecraft.client.option.GameSettings;
@@ -35,6 +32,8 @@ public class AdditionalTooltipsClient implements ClientStartEntrypoint, OptionsI
 				.withComponent(new BooleanOptionComponent(AdditionalTooltipOptions.SHOW_FOOD_REGEN_TIME))
 				.withComponent(new ToggleableOptionComponent<>(AdditionalTooltipOptions.SHOW_ARMOR_PROTECTION))
 				.withComponent(new ToggleableOptionComponent<>(AdditionalTooltipOptions.SHOW_DURABILITY))
+				.withComponent(new ToggleableOptionComponent<>(AdditionalTooltipOptions.SHOW_FLAG_ART))
+				.withComponent(new ToggleableOptionComponent<>(AdditionalTooltipOptions.FLAG_ART_SCALE))
 			);
 		OptionsPages.register(additionalTooltipOptions);
 	}

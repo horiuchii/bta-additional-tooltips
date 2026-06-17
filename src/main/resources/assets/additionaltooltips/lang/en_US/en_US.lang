@@ -25,3 +25,12 @@ options.showDurability.dont_show=Never Show
 options.showDurability.on_show_description=Show w/ Description
 options.showDurability.prompt=Prompt
 options.showDurability.always_show=Always Show
+
+options.showFlagArt=Show Flag Art
+
+options.showFlagArt.dont_show=Never Show
+options.showFlagArt.on_show_description=Show w/ Description
+options.showFlagArt.prompt=Prompt
+options.showFlagArt.always_show=Always Show
+
+options.flagArtScale=Flag Art Scale
