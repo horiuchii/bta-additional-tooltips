@@ -1,45 +1,47 @@
+options.dont_show=Never Show
+options.on_show_description=With Description
+options.prompt=Prompt
+options.always_show=Always Show
+
+options.tooltipcolor.white=White
+options.tooltipcolor.orange=Orange
+options.tooltipcolor.magenta=Magenta
+options.tooltipcolor.light_blue=Light Blue
+options.tooltipcolor.yellow=Yellow
+options.tooltipcolor.lime=Lime
+options.tooltipcolor.pink=Pink
+options.tooltipcolor.gray=Gray
+options.tooltipcolor.light_gray=Light Gray
+options.tooltipcolor.cyan=Cyan
+options.tooltipcolor.purple=Purple
+options.tooltipcolor.blue=Blue
+options.tooltipcolor.brown=Brown
+options.tooltipcolor.green=Green
+options.tooltipcolor.red=Red
+options.tooltipcolor.black=Black
+
 additionaltooltips.options.title=Additional Tooltips
+
 additionaltooltips.options.category.additionaltooltips=Additional Tooltips
-
 key.additional.tooltip=Show Additional Tooltip
+options.disableFunctionality=Disable Additional Tooltips Functionality
 
+additionaltooltips.options.category.color=Additional Tooltip Colors
+options.tooltipColor=Tooltip Color
+options.tooltipDurabilityColor=Durability Color
+
+additionaltooltips.options.category.information=Additional Information
 options.showFood=Show Food Regen
-
-options.showFood.dont_show=Never Show
-options.showFood.on_show_description=Show w/ Description
-options.showFood.prompt=Prompt
-options.showFood.always_show=Always Show
-
 options.showFoodRegenTime=Show Food Regen Time
-
 options.showArmorProtection=Show Armor Protection Stats
-
-options.showArmorProtection.dont_show=Never Show
-options.showArmorProtection.on_show_description=Show w/ Description
-options.showArmorProtection.prompt=Prompt
-options.showArmorProtection.always_show=Always Show
-
+options.showToolMiningEfficiency=Show Tool Mining Efficiency
+options.showToolDamage=Show Tool Damage
+options.showNonSwordDamage=Show Non-Sword Tool Damage
+options.showArrowDamage=Show Arrow Damage
 options.showDurability=Show Item Durability
 
-options.showDurability.dont_show=Never Show
-options.showDurability.on_show_description=Show w/ Description
-options.showDurability.prompt=Prompt
-options.showDurability.always_show=Always Show
-
+additionaltooltips.options.category.displays=Additional Displays
 options.showFlagArt=Show Flag Art
-
-options.showFlagArt.dont_show=Never Show
-options.showFlagArt.on_show_description=Show w/ Description
-options.showFlagArt.prompt=Prompt
-options.showFlagArt.always_show=Always Show
-
 options.flagArtScale=Flag Art Scale
-
 options.showMapArt=Show Map Art
-
-options.showMapArt.dont_show=Never Show
-options.showMapArt.on_show_description=Show w/ Description
-options.showMapArt.prompt=Prompt
-options.showMapArt.always_show=Always Show
-
 options.mapArtScale=Map Art Scale

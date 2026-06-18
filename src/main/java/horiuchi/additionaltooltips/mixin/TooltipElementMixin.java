@@ -27,6 +27,8 @@ import net.minecraft.core.block.material.MaterialColor;
 import net.minecraft.core.enums.HumanArmorShape;
 import net.minecraft.core.item.*;
 import net.minecraft.core.item.material.ArmorMaterial;
+import net.minecraft.core.item.tool.ItemTool;
+import net.minecraft.core.item.tool.ItemToolSword;
 import net.minecraft.core.lang.I18n;
 import net.minecraft.core.net.command.TextFormatting;
 import net.minecraft.core.player.inventory.slot.Slot;
@@ -235,7 +237,9 @@ public abstract class TooltipElementMixin extends Gui {
 	@Unique
 	private boolean AttemptDrawPrompt(boolean alreadyDrawn, StringBuilder text, OptionEnum<AdditionalTooltipOptions.ShowTooltip> option) {
 		if (!alreadyDrawn && option.value == AdditionalTooltipOptions.ShowTooltip.PROMPT) {
-			text.append('\n').append(TextFormatting.LIGHT_GRAY).append((I18n.getInstance().translateKeyAndFormat("gui.tooltip.prompt.description", AdditionalTooltipOptions.KEY_SHOW_ADDITIONAL_TOOLTIP.getKeyName())));
+			text.append('\n')
+				.append(TextFormatting.LIGHT_GRAY)
+				.append((I18n.getInstance().translateKeyAndFormat("gui.tooltip.prompt.description", AdditionalTooltipOptions.KEY_SHOW_ADDITIONAL_TOOLTIP.getKeyName())));
 			return true;
 		}
 		return alreadyDrawn;
@@ -243,6 +247,13 @@ public abstract class TooltipElementMixin extends Gui {
 
 	@Inject(method = "getTooltipText(Lnet/minecraft/core/item/ItemStack;ZLnet/minecraft/core/player/inventory/slot/Slot;)Ljava/lang/String;", at = @At("RETURN"), cancellable = true)
 	private void addAdditionalTooltipText(ItemStack itemStack, boolean showDescription, Slot slot, CallbackInfoReturnable<String> cir) {
+		if (AdditionalTooltipOptions.DISABLE_FUNCTIONALITY.value) {
+			renderItem = null;
+			renderFlag = false;
+			renderMap = false;
+			return;
+		}
+
 		renderItem = itemStack;
 		boolean drawnPrompt = (!showDescription && !(slot instanceof SlotResult) && GameSettings.ITEM_DESCRIPTIONS.value != DescriptionPromptEnum.NEVER_PROMPT) && GameSettings.KEY_DESCRIPTION.getKeyCode() == AdditionalTooltipOptions.KEY_SHOW_ADDITIONAL_TOOLTIP.getKeyCode();
 		StringBuilder text = new StringBuilder(cir.getReturnValue());
@@ -251,7 +262,7 @@ public abstract class TooltipElementMixin extends Gui {
 		// Armor Stats
 		if (item instanceof ItemArmor<?> armor) {
 			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_ARMOR_PROTECTION)) {
-				text.append("\n");
+				text.append("\n").append(TextFormatting.WHITE);
 				if (armor.getArmorShape() instanceof HumanArmorShape armorShape) {
 					String slotName = "?";
 					switch (armorShape) {
@@ -268,7 +279,7 @@ public abstract class TooltipElementMixin extends Gui {
 
 				ArmorMaterial material = armor.getArmorMaterial();
 				if (material != null) {
-					text.append(TextFormatting.LIGHT_BLUE);
+					text.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR));
 					for(DamageType damageType : DamageType.values()) {
 						if(!damageType.shouldDisplay())
 							continue;
@@ -285,25 +296,120 @@ public abstract class TooltipElementMixin extends Gui {
 		}
 
 		// Food Stats
-		if (item instanceof ItemFood a || (item instanceof ItemPlaceable placeable && placeable.block.getLogic() instanceof BlockLogicEdible)) {
+		if (item instanceof ItemFood || (item instanceof ItemPlaceable placeable && placeable.block.getLogic() instanceof BlockLogicEdible)) {
 			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_FOOD)) {
 				if (item instanceof ItemFood food) {
 					int healAmount = food.getHealAmount(itemStack);
 					if (healAmount != 0.0F) {
-						text.append('\n').append(TextFormatting.RED).append("♥").append(TextFormatting.LIGHT_GRAY).append(" x ").append(new DecimalFormat("#.#").format((healAmount / 2.0F)));
+						text.append('\n')
+							.append(TextFormatting.RED)
+							.append("♥")
+							.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
+							.append(" x ")
+							.append(new DecimalFormat("#.#")
+								.format((healAmount / 2.0F)));
 						int ticksPerHeal = food.getTicksPerHeal(itemStack);
 						if (ticksPerHeal != 0.0F && AdditionalTooltipOptions.SHOW_FOOD_REGEN_TIME.value) {
-							text.append(" over ").append(new DecimalFormat("#.#").format((healAmount*(ticksPerHeal/20.0F)))).append("s");
+							text.append(" over ")
+								.append(new DecimalFormat("#.#")
+									.format((healAmount*(ticksPerHeal/20.0F))))
+								.append("s");
 						}
 					}
 				}
 				else if (item instanceof ItemPlaceable placeable && placeable.block.getLogic() instanceof BlockLogicEdible edibleLogic) {
 					int healAmount = edibleLogic.getHealAmount(null, null);
-					text.append('\n').append(TextFormatting.RED).append("♥").append(TextFormatting.LIGHT_GRAY).append(String.format(" x %s per slice (%s total)", new DecimalFormat("#.#").format((healAmount / 2.0F)), edibleLogic.maxBites));
+					text.append('\n')
+						.append(TextFormatting.RED)
+						.append("♥")
+						.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
+						.append(String.format(" x %s per slice (%s total)", new DecimalFormat("#.#")
+							.format((healAmount / 2.0F)), edibleLogic.maxBites));
 				}
 			}
 			else {
 				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_FOOD);
+			}
+		}
+
+		// Tool Mining Efficiency
+		if (item instanceof ItemTool || item instanceof ItemToolSword) {
+			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_TOOL_MINING_EFFICIENCY)) {
+				float efficiency = 0;
+
+				if (item instanceof ItemToolSword) {
+					efficiency = 1.5F;
+				}
+				else if (item instanceof ItemTool itemTool) {
+					efficiency = itemTool.getMaterial().getEfficiency(false);
+				}
+
+				if (efficiency != 0) {
+					text.append('\n')
+						.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
+						.append(String.format("%sx Mining Efficiency",
+							new DecimalFormat("#.#")
+								.format(efficiency)));
+				}
+			}
+			else {
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_TOOL_MINING_EFFICIENCY);
+			}
+		}
+
+		// Tool Combat Damage
+		if (item instanceof ItemTool || item instanceof ItemToolSword) {
+			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_TOOL_DAMAGE)) {
+				int damage = 0;
+				if (AdditionalTooltipOptions.SHOW_NON_SWORD_DAMAGE.value && item instanceof ItemTool tool) {
+					damage = tool.getDamageVsEntity(itemStack, null);
+				} else if (item instanceof ItemToolSword tool) {
+					damage = tool.getDamageVsEntity(itemStack, null);
+				}
+				if (damage != 0) {
+					text.append('\n')
+						.append(TextFormatting.RED)
+						.append("♥")
+						.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
+						.append(" x ")
+						.append(new DecimalFormat("#.#")
+							.format(damage / 2.0F))
+						.append(" Combat Damage");
+				}
+			}
+			else {
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_TOOL_DAMAGE);
+			}
+		}
+
+		// Arrow Combat Damage
+		if (item == Items.AMMO_ARROW || item == Items.AMMO_ARROW_GOLD || item == Items.AMMO_ARROW_FLAMING || item == Items.AMMO_ARROW_PURPLE || item == Items.ARMOR_QUIVER_GOLD) {
+			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_ARROW_DAMAGE)) {
+				int damage = 0;
+
+				if (item == Items.AMMO_ARROW) {
+					damage = 5;
+				}
+				else if (item == Items.AMMO_ARROW_FLAMING) {
+					damage = 6;
+				}
+				else {
+					damage = 2;
+				}
+
+				if (damage != 0) {
+					text.append('\n')
+						.append(TextFormatting.RED)
+						.append("♥")
+						.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
+						.append(" x ")
+						.append(new DecimalFormat("#.#")
+							.format(damage / 2.0F))
+						.append(item == Items.AMMO_ARROW_FLAMING ? " Fire Damage" : " Combat Damage");
+				}
+			}
+			else {
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_ARROW_DAMAGE);
 			}
 		}
 
@@ -313,7 +419,11 @@ public abstract class TooltipElementMixin extends Gui {
 				int offset = item == Items.ARMOR_QUIVER || item == Items.PAINTBRUSH ? 0 : 1;
 				int durability = itemStack.getMaxDamage();
 				int remainingUses = item == Items.PAINTBRUSH && itemStack.getData().getInteger("Color") == 0 ? 0 : durability - itemStack.getMetadata();
-				text.append('\n').append(TextFormatting.LIGHT_GRAY).append(remainingUses + offset).append(" / ").append(durability + offset);
+				text.append('\n')
+					.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_DURABILITY_COLOR))
+					.append(remainingUses + offset)
+					.append(" / ")
+					.append(durability + offset);
 			}
 			else {
 				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_DURABILITY);
