@@ -1,6 +1,7 @@
 package horiuchi.additionaltooltips.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.nbt.tags.CompoundTag;
 import com.mojang.nbt.tags.ListTag;
 import horiuchi.additionaltooltips.AdditionalTooltipOptions;
@@ -212,17 +213,19 @@ public abstract class TooltipElementMixin extends Gui {
 		GLRenderer.disableState(State.BLEND);
 	}
 
-	@Inject(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/font/FontRenderer;renderWidthConstrained(Ljava/lang/CharSequence;III)Lnet/minecraft/client/render/font/RenderIntegerConstrainedBase;"), locals = LocalCapture.CAPTURE_FAILHARD)
+	@Inject(method = "render(Ljava/lang/CharSequence;IIIIIIZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/font/FontRenderer;renderWidthConstrained(Ljava/lang/CharSequence;III)Lnet/minecraft/client/render/font/RenderIntegerConstrainedBase;"))
 	private void doAdditionalRendering(CharSequence chars, int mouseX, int mouseY, int offsetX, int offsetY, int maxWidth, int maxHeight, boolean canOffset, CallbackInfo callbackInfo,
-									   List<String> lines, int rawWidth, int rawHeight, int padding, int screenW, int screenH, int finalX, int finalY) {
+									   @Local(ordinal = 11) int finalX, @Local(ordinal = 12) int finalY) {
 		if (renderItem == null) {
 			return;
 		}
 
+		finalY += 10 + (AdditionalTooltipOptions.DRAW_BELOW_DESCRIPTION.value ? 10 : 0);
+
 		if (renderFlag) {
-			renderFlagTooltip(finalX, finalY + 10);
+			renderFlagTooltip(finalX, finalY);
 		} else if (renderMap) {
-			renderMapTooltip(finalX, finalY + 10 + AdditionalTooltipOptions.MAP_ART_SCALE.value);
+			renderMapTooltip(finalX, finalY + AdditionalTooltipOptions.MAP_ART_SCALE.value);
 		}
 	}
 
@@ -245,8 +248,22 @@ public abstract class TooltipElementMixin extends Gui {
 		return alreadyDrawn;
 	}
 
-	@Inject(method = "getTooltipText(Lnet/minecraft/core/item/ItemStack;ZLnet/minecraft/core/player/inventory/slot/Slot;)Ljava/lang/String;", at = @At("RETURN"), cancellable = true)
-	private void addAdditionalTooltipText(ItemStack itemStack, boolean showDescription, Slot slot, CallbackInfoReturnable<String> cir) {
+	@Inject(method = "getTooltipText(Lnet/minecraft/core/item/ItemStack;ZLnet/minecraft/core/player/inventory/slot/Slot;)Ljava/lang/String;", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/TooltipElement;formatDescription(Ljava/lang/String;)Ljava/lang/String;"))
+	private void attemptDrawAdditionTooltipBeforeDescription(ItemStack itemStack, boolean showDescription, Slot slot, CallbackInfoReturnable<String> cir, @Local StringBuilder text) {
+		if (!AdditionalTooltipOptions.DRAW_BELOW_DESCRIPTION.value) {
+			addAdditionalTooltipText(itemStack, showDescription, slot, text);
+		}
+	}
+
+	@Inject(method = "getTooltipText(Lnet/minecraft/core/item/ItemStack;ZLnet/minecraft/core/player/inventory/slot/Slot;)Ljava/lang/String;", at = @At(value = "RETURN", shift = At.Shift.BEFORE))
+	private void attemptDrawAdditionTooltipAfterDescription(ItemStack itemStack, boolean showDescription, Slot slot, CallbackInfoReturnable<String> cir, @Local StringBuilder text) {
+		if (AdditionalTooltipOptions.DRAW_BELOW_DESCRIPTION.value) {
+			addAdditionalTooltipText(itemStack, showDescription, slot, text);
+		}
+	}
+
+	@Unique
+	private void addAdditionalTooltipText(ItemStack itemStack, boolean showDescription, Slot slot, StringBuilder text) {
 		if (AdditionalTooltipOptions.DISABLE_FUNCTIONALITY.value) {
 			renderItem = null;
 			renderFlag = false;
@@ -256,13 +273,23 @@ public abstract class TooltipElementMixin extends Gui {
 
 		renderItem = itemStack;
 		boolean drawnPrompt = (!showDescription && !(slot instanceof SlotResult) && GameSettings.ITEM_DESCRIPTIONS.value != DescriptionPromptEnum.NEVER_PROMPT) && GameSettings.KEY_DESCRIPTION.getKeyCode() == AdditionalTooltipOptions.KEY_SHOW_ADDITIONAL_TOOLTIP.getKeyCode();
-		StringBuilder text = new StringBuilder(cir.getReturnValue());
 		Item item = itemStack.getItem();
+
+		int insertPos = text.length();
+
+		if (!AdditionalTooltipOptions.DRAW_BELOW_DESCRIPTION.value) {
+			insertPos = text.lastIndexOf("\n");
+			if (insertPos == -1) {
+				insertPos = text.length();
+			}
+		}
+
+		StringBuilder additionalText = new StringBuilder();
 
 		// Armor Stats
 		if (item instanceof ItemArmor<?> armor) {
 			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_ARMOR_PROTECTION)) {
-				text.append("\n").append(TextFormatting.WHITE);
+				additionalText.append("\n").append(TextFormatting.WHITE);
 				if (armor.getArmorShape() instanceof HumanArmorShape armorShape) {
 					String slotName = "?";
 					switch (armorShape) {
@@ -271,27 +298,27 @@ public abstract class TooltipElementMixin extends Gui {
 						case LEGS -> slotName = "Legs";
 						case BOOTS -> slotName = "Feet";
 					}
-					text.append(String.format("Protection when on %s:", slotName));
+					additionalText.append(String.format("Protection when on %s:", slotName));
 				}
 				else {
-					text.append("Protection when equipped:");
+					additionalText.append("Protection when equipped:");
 				}
 
 				ArmorMaterial material = armor.getArmorMaterial();
 				if (material != null) {
-					text.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR));
+					additionalText.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR));
 					for(DamageType damageType : DamageType.values()) {
 						if(!damageType.shouldDisplay())
 							continue;
 
 						String damageTypeName = I18n.getInstance().translateKey(damageType.getLanguageKey());
 						String protection = new DecimalFormat("#.#").format((100.0F * (material.getProtection(damageType) * armor.getArmorPieceProtectionPercentage())));
-						text.append(String.format("\n+%s%% %s", protection, damageTypeName));
+						additionalText.append(String.format("\n+%s%% %s", protection, damageTypeName));
 					}
 				}
 			}
 			else {
-				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_ARMOR_PROTECTION);
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, additionalText, AdditionalTooltipOptions.SHOW_ARMOR_PROTECTION);
 			}
 		}
 
@@ -301,7 +328,7 @@ public abstract class TooltipElementMixin extends Gui {
 				if (item instanceof ItemFood food) {
 					int healAmount = food.getHealAmount(itemStack);
 					if (healAmount != 0.0F) {
-						text.append('\n')
+						additionalText.append('\n')
 							.append(TextFormatting.RED)
 							.append("♥")
 							.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
@@ -310,7 +337,7 @@ public abstract class TooltipElementMixin extends Gui {
 								.format((healAmount / 2.0F)));
 						int ticksPerHeal = food.getTicksPerHeal(itemStack);
 						if (ticksPerHeal != 0.0F && AdditionalTooltipOptions.SHOW_FOOD_REGEN_TIME.value) {
-							text.append(" over ")
+							additionalText.append(" over ")
 								.append(new DecimalFormat("#.#")
 									.format((healAmount*(ticksPerHeal/20.0F))))
 								.append("s");
@@ -319,7 +346,7 @@ public abstract class TooltipElementMixin extends Gui {
 				}
 				else if (item instanceof ItemPlaceable placeable && placeable.block.getLogic() instanceof BlockLogicEdible edibleLogic) {
 					int healAmount = edibleLogic.getHealAmount(null, null);
-					text.append('\n')
+					additionalText.append('\n')
 						.append(TextFormatting.RED)
 						.append("♥")
 						.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
@@ -328,7 +355,7 @@ public abstract class TooltipElementMixin extends Gui {
 				}
 			}
 			else {
-				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_FOOD);
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, additionalText, AdditionalTooltipOptions.SHOW_FOOD);
 			}
 		}
 
@@ -345,7 +372,7 @@ public abstract class TooltipElementMixin extends Gui {
 				}
 
 				if (efficiency != 0) {
-					text.append('\n')
+					additionalText.append('\n')
 						.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
 						.append(String.format("%sx Mining Efficiency",
 							new DecimalFormat("#.#")
@@ -353,7 +380,7 @@ public abstract class TooltipElementMixin extends Gui {
 				}
 			}
 			else {
-				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_TOOL_MINING_EFFICIENCY);
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, additionalText, AdditionalTooltipOptions.SHOW_TOOL_MINING_EFFICIENCY);
 			}
 		}
 
@@ -367,7 +394,7 @@ public abstract class TooltipElementMixin extends Gui {
 					damage = tool.getDamageVsEntity(itemStack, null);
 				}
 				if (damage != 0) {
-					text.append('\n')
+					additionalText.append('\n')
 						.append(TextFormatting.RED)
 						.append("♥")
 						.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
@@ -378,7 +405,7 @@ public abstract class TooltipElementMixin extends Gui {
 				}
 			}
 			else {
-				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_TOOL_DAMAGE);
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, additionalText, AdditionalTooltipOptions.SHOW_TOOL_DAMAGE);
 			}
 		}
 
@@ -398,7 +425,7 @@ public abstract class TooltipElementMixin extends Gui {
 				}
 
 				if (damage != 0) {
-					text.append('\n')
+					additionalText.append('\n')
 						.append(TextFormatting.RED)
 						.append("♥")
 						.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_COLOR))
@@ -409,7 +436,7 @@ public abstract class TooltipElementMixin extends Gui {
 				}
 			}
 			else {
-				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_ARROW_DAMAGE);
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, additionalText, AdditionalTooltipOptions.SHOW_ARROW_DAMAGE);
 			}
 		}
 
@@ -419,14 +446,14 @@ public abstract class TooltipElementMixin extends Gui {
 				int offset = item == Items.ARMOR_QUIVER || item == Items.PAINTBRUSH ? 0 : 1;
 				int durability = itemStack.getMaxDamage();
 				int remainingUses = item == Items.PAINTBRUSH && itemStack.getData().getInteger("Color") == 0 ? 0 : durability - itemStack.getMetadata();
-				text.append('\n')
+				additionalText.append('\n')
 					.append(AdditionalTooltipOptions.getColorOption(AdditionalTooltipOptions.TOOLTIP_DURABILITY_COLOR))
 					.append(remainingUses + offset)
 					.append(" / ")
 					.append(durability + offset);
 			}
 			else {
-				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_DURABILITY);
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, additionalText, AdditionalTooltipOptions.SHOW_DURABILITY);
 			}
 		}
 
@@ -434,11 +461,13 @@ public abstract class TooltipElementMixin extends Gui {
 		if (item instanceof ItemFlag flag && flag.hasFlagBeenDrawnOn(itemStack)) {
 			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_FLAG_ART)) {
 				renderFlag = true;
-				text.insert(text.indexOf("\n"), StringUtils.repeat("\n\n", (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1)));
+				if (!AdditionalTooltipOptions.DRAW_BELOW_DESCRIPTION.value) {
+					additionalText.insert(Math.max(0, additionalText.indexOf("\n")), StringUtils.repeat("\n\n", (AdditionalTooltipOptions.FLAG_ART_SCALE.value + 1)));
+				}
 			}
 			else {
 				renderFlag = false;
-				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_FLAG_ART);
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, additionalText, AdditionalTooltipOptions.SHOW_FLAG_ART);
 			}
 		}
 		else {
@@ -449,17 +478,19 @@ public abstract class TooltipElementMixin extends Gui {
 		if (item instanceof ItemMap && ItemMap.hasInitialized(itemStack) && !(slot instanceof SlotGuidebook)) {
 			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_MAP_ART)) {
 				renderMap = true;
-				text.insert(text.indexOf("\n"), StringUtils.repeat("\n\n\n", (AdditionalTooltipOptions.MAP_ART_SCALE.value + 1)));
+				if (!AdditionalTooltipOptions.DRAW_BELOW_DESCRIPTION.value) {
+					additionalText.insert(Math.max(0, additionalText.indexOf("\n")), StringUtils.repeat("\n\n\n", (AdditionalTooltipOptions.MAP_ART_SCALE.value + 1)));
+				}
 			}
 			else {
 				renderMap = false;
-				drawnPrompt = AttemptDrawPrompt(drawnPrompt, text, AdditionalTooltipOptions.SHOW_MAP_ART);
+				drawnPrompt = AttemptDrawPrompt(drawnPrompt, additionalText, AdditionalTooltipOptions.SHOW_MAP_ART);
 			}
 		}
 		else {
 			renderMap = false;
 		}
 
-		cir.setReturnValue(text.toString());
+		text.insert(insertPos, additionalText);
 	}
 }

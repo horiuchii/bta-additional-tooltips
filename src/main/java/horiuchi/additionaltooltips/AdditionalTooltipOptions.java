@@ -12,6 +12,7 @@ import org.lwjgl.input.Keyboard;
 @Environment(EnvType.CLIENT)
 public class AdditionalTooltipOptions {
 	public static final KeyBinding KEY_SHOW_ADDITIONAL_TOOLTIP = new KeyBinding("key.additional.tooltip").setDefault(InputDevice.keyboard, Keyboard.KEY_LSHIFT);
+	public static final OptionBoolean DRAW_BELOW_DESCRIPTION = new OptionBoolean("drawBelowDescription", true);
 	public static final OptionBoolean DISABLE_FUNCTIONALITY = new OptionBoolean("disableFunctionality", false);
 
 	public static final OptionEnum<TooltipColor> TOOLTIP_COLOR = new OptionEnum<>("tooltipColor", TooltipColor.class, TooltipColor.LIGHT_BLUE).withDisplayStringProvider(AdditionalTooltipOptions::getTooltipColorString);

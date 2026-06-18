@@ -24,13 +24,14 @@ additionaltooltips.options.title=Additional Tooltips
 
 additionaltooltips.options.category.additionaltooltips=Additional Tooltips
 key.additional.tooltip=Show Additional Tooltip
-options.disableFunctionality=Disable Additional Tooltips Functionality
+options.drawBelowDescription=Draw Below Description
+options.disableFunctionality=Disable Mod Functionality
 
-additionaltooltips.options.category.color=Additional Tooltip Colors
-options.tooltipColor=Tooltip Color
-options.tooltipDurabilityColor=Durability Color
+additionaltooltips.options.category.color=Colors
+options.tooltipColor=Text Color
+options.tooltipDurabilityColor=Durability Text Color
 
-additionaltooltips.options.category.information=Additional Information
+additionaltooltips.options.category.information=Information
 options.showFood=Show Food Regen
 options.showFoodRegenTime=Show Food Regen Time
 options.showArmorProtection=Show Armor Protection Stats
@@ -40,7 +41,7 @@ options.showNonSwordDamage=Show Non-Sword Tool Damage
 options.showArrowDamage=Show Arrow Damage
 options.showDurability=Show Item Durability
 
-additionaltooltips.options.category.displays=Additional Displays
+additionaltooltips.options.category.displays=Art Displays
 options.showFlagArt=Show Flag Art
 options.flagArtScale=Flag Art Scale
 options.showMapArt=Show Map Art

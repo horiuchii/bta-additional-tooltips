@@ -28,6 +28,7 @@ public class AdditionalTooltipsClient implements ClientStartEntrypoint, OptionsI
 		additionalTooltipOptions = new OptionsPage("additionaltooltips.options.title", Items.LABEL.getDefaultStack())
 			.withComponent(new OptionsCategory("additionaltooltips.options.category.additionaltooltips")
 				.withComponent(new KeyBindingComponent(AdditionalTooltipOptions.KEY_SHOW_ADDITIONAL_TOOLTIP))
+				.withComponent(new BooleanOptionComponent(AdditionalTooltipOptions.DRAW_BELOW_DESCRIPTION))
 				.withComponent(new BooleanOptionComponent(AdditionalTooltipOptions.DISABLE_FUNCTIONALITY))
 			)
 			.withComponent(new OptionsCategory("additionaltooltips.options.category.color")
