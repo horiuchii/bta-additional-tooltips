@@ -9,6 +9,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.TooltipElement;
+import net.minecraft.client.gui.guidebook.SlotGuidebook;
 import net.minecraft.client.option.GameSettings;
 import net.minecraft.client.option.OptionEnum;
 import net.minecraft.client.option.enums.DescriptionPromptEnum;
@@ -155,17 +156,6 @@ public abstract class TooltipElementMixin extends Gui {
 
 	@Unique
 	private void renderMapTooltip(int x, int y) {
-		byte scale = renderItem.getData().getByteOrDefault("scale", (byte) -1);
-		if (scale == -1) {
-			return;
-		}
-
-		String s = String.format("map_%s_scale_%s", renderItem.getMetadata(), scale);
-		ItemMapSavedData mapData = (ItemMapSavedData)this.mc.currentWorld.getSavedData(ItemMapSavedData.class, s);
-		if (mapData == null) {
-			return;
-		}
-
 		int[] mapImageData = new int[MapItemRenderer.IMAGE_AREA];
 		TextureBuffered mapTexture = Minecraft.getMinecraft().textureManager.loadBufferedTexture(new BufferedImage(MapItemRenderer.IMAGE_WIDTH, MapItemRenderer.IMAGE_HEIGHT, 2));
 		TextureManager textureManager = Minecraft.getMinecraft().textureManager;
@@ -173,6 +163,14 @@ public abstract class TooltipElementMixin extends Gui {
 
 		int size = 24 * (AdditionalTooltipOptions.MAP_ART_SCALE.value + 1);
 		this.drawGuiTexture(this.mc.textureManager, x, y, size, size, "/assets/minecraft/textures/misc/mapbg.png");
+
+		byte scale = renderItem.getData().getByteOrDefault("scale", (byte) 3);
+
+		String s = String.format("map_%s_scale_%s", renderItem.getMetadata(), scale);
+		ItemMapSavedData mapData = (ItemMapSavedData)this.mc.currentWorld.getSavedData(ItemMapSavedData.class, s);
+		if (mapData == null) {
+			return;
+		}
 
 		for(int i = 0; i < MapItemRenderer.IMAGE_AREA; ++i) {
 			int colorIndex = mapData.colors[i];
@@ -338,7 +336,7 @@ public abstract class TooltipElementMixin extends Gui {
 		}
 
 		// Map Art
-		if (item instanceof ItemMap && ItemMap.hasInitialized(itemStack)) {
+		if (item instanceof ItemMap && ItemMap.hasInitialized(itemStack) && !(slot instanceof SlotGuidebook)) {
 			if (shouldDisplayTooltip(AdditionalTooltipOptions.SHOW_MAP_ART)) {
 				renderMap = true;
 				text.insert(text.indexOf("\n"), StringUtils.repeat("\n\n\n", (AdditionalTooltipOptions.MAP_ART_SCALE.value + 1)));
