@@ -46,12 +46,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
-import java.util.List;
 
 @Environment(EnvType.CLIENT)
 @Mixin(TooltipElement.class)
@@ -264,7 +262,7 @@ public abstract class TooltipElementMixin extends Gui {
 
 	@Unique
 	private void addAdditionalTooltipText(ItemStack itemStack, boolean showDescription, Slot slot, StringBuilder text) {
-		if (AdditionalTooltipOptions.DISABLE_FUNCTIONALITY.value) {
+		if (AdditionalTooltipOptions.DISABLE_FUNCTIONALITY.value || (slot != null && !slot.getIsDiscovered(this.mc.thePlayer))) {
 			renderItem = null;
 			renderFlag = false;
 			renderMap = false;
